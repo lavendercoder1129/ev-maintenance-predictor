@@ -2,13 +2,6 @@
 
 A machine learning project that predicts whether an EV charging station requires maintenance, based on daily usage, downtime hours, and maintenance cost data.
 
-## Live Demo
-
-Open `web/index.html` in any browser — no server needed.  
-Or deploy instantly via [Netlify Drop](https://app.netlify.com/drop) by dragging the `web/` folder.
-
----
-
 ## Project Structure
 
 ```
