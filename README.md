@@ -89,24 +89,8 @@ df = pd.read_csv("../data/raw_station_data.csv")
 
 ---
 
-## Deploying the Web App
 
-**Option 1 — Local**
-```bash
-open web/index.html     # macOS
-start web/index.html    # Windows
-```
-
-**Option 2 — GitHub Pages**
-1. Push this repo to GitHub
-2. Go to Settings → Pages → Source: `main` branch, `/web` folder
-3. Your app will be live at `https://<username>.github.io/<repo>/`
-
-**Option 3 — Netlify Drop**  
-Drag the `web/` folder to [netlify.com/drop](https://app.netlify.com/drop)
-
----
 
 ## Author
 
-EN24311792 — Pednekar Atharva Pramod
+Pednekar Atharva Pramod
