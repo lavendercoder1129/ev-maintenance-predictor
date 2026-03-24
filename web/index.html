@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EV Station Maintenance Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f7f6;
+    --white: #ffffff;
+    --border: #e4e4e2;
+    --text: #111110;
+    --muted: #6f6f6d;
+    --faint: #a8a8a6;
+    --green: #1a7a45;
+    --green-bg: #edf7f1;
+    --red: #c0392b;
+    --red-bg: #fdf1f0;
+    --amber: #92600a;
+    --amber-bg: #fef9ec;
+    --radius: 8px;
+    --font: 'Inter', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* Header */
+  .page-header { margin-bottom: 40px; }
+  .page-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .page-sub {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .page-sub span {
+    display: inline-block;
+    background: var(--green-bg);
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 1px 8px;
+    border-radius: 99px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* Stats strip */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .stat {
+    background: var(--white);
+    padding: 16px 20px;
+  }
+  .stat-label { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .stat-val { font-size: 22px; font-weight: 600; color: var(--text); }
+  .stat-val.red { color: var(--red); }
+  .stat-val.green { color: var(--green); }
+
+  /* Two-col layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  /* Card */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--faint);
+    margin-bottom: 20px;
+  }
+
+  /* Form */
+  .field { margin-bottom: 20px; }
+  .field-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .field-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .field-unit { font-size: 11px; color: var(--faint); }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 2px;
+    background: var(--border);
+    border-radius: 99px;
+    outline: none;
+    cursor: pointer;
+    border: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--text);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .slider-val {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    min-width: 90px;
+    text-align: right;
+  }
+
+  .range-hint {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--faint);
+    margin-top: 4px;
+    padding: 0 1px;
+  }
+
+  .field-note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .sid-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+  }
+  .sid-input:focus { border-color: #aaa; }
+
+  .btn {
+    width: 100%;
+    padding: 11px;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+
+  /* Result */
+  .result { display: none; margin-top: 16px; border-radius: var(--radius); overflow: hidden; border: 1px solid; }
+  .result.clear { border-color: #b8e0c8; background: var(--green-bg); }
+  .result.maint { border-color: #f5c0bb; background: var(--red-bg); }
+
+  .result-top { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .result-verdict { font-size: 14px; font-weight: 600; }
+  .result.clear .result-verdict { color: var(--green); }
+  .result.maint .result-verdict { color: var(--red); }
+  .result-pct { font-size: 22px; font-weight: 600; }
+  .result.clear .result-pct { color: var(--green); }
+  .result.maint .result-pct { color: var(--red); }
+
+  .result-body { border-top: 1px solid; padding: 14px 16px; }
+  .result.clear .result-body { border-color: #b8e0c8; }
+  .result.maint .result-body { border-color: #f5c0bb; }
+
+  /* Model scores */
+  .model-scores {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .model-score {
+    background: rgba(255,255,255,.6);
+    border-radius: 6px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .ms-label { font-size: 10px; color: var(--muted); margin-bottom: 3px; text-transform: uppercase; letter-spacing:.05em; }
+  .ms-val { font-size: 17px; font-weight: 600; }
+
+  /* Contributions */
+  .contrib-title { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .contrib-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 11px; }
+  .contrib-name { width: 100px; color: var(--muted); flex-shrink: 0; }
+  .contrib-track { flex: 1; height: 4px; background: rgba(0,0,0,.07); border-radius: 99px; overflow: hidden; }
+  .contrib-fill { height: 100%; border-radius: 99px; transition: width .35s ease; }
+  .contrib-num { width: 80px; text-align: right; color: var(--muted); flex-shrink: 0; }
+
+  .formula-note {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+    padding: 8px 10px;
+    background: rgba(0,0,0,.04);
+    border-radius: 6px;
+  }
+
+  /* Right panel */
+  .right-stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Gauge */
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; padding: 4px 0 0; }
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 10px;
+    color: var(--faint);
+    margin-top: 4px;
+  }
+
+  /* Glossary */
+  .gloss-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .gloss-item:last-child { border: none; padding-bottom: 0; }
+  .gloss-term { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .gloss-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  /* History */
+  .history { margin-top: 16px; }
+  .history-chart { position: relative; height: 120px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 500; text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--muted); }
+  tr:last-child td { border: none; }
+
+  .badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; }
+  .badge-clear { background: var(--green-bg); color: var(--green); }
+  .badge-maint { background: var(--red-bg); color: var(--red); }
+
+  .empty { text-align: center; color: var(--faint); padding: 20px 0; font-size: 12px; font-style: italic; }
+
+  /* Footer */
+  footer { margin-top: 48px; font-size: 11px; color: var(--faint); display: flex; justify-content: space-between; }
+
+  @media(max-width:700px) {
+    .layout { grid-template-columns: 1fr; }
+    .stats-strip { grid-template-columns: repeat(2,1fr); }
+    .right-stack { display: contents; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-header">
+    <div class="page-title">EV Station Maintenance Predictor</div>
+    <div class="page-sub">
+      Enter station data to predict maintenance need
+      <span>Trained on 500 stations</span>
+    </div>
+  </header>
+
+  <div class="stats-strip">
+    <div class="stat"><div class="stat-label">Predictions</div><div class="stat-val" id="cnt">0</div></div>
+    <div class="stat"><div class="stat-label">Needs maintenance</div><div class="stat-val red" id="yes-cnt">0</div></div>
+    <div class="stat"><div class="stat-label">All clear</div><div class="stat-val green" id="no-cnt">0</div></div>
+    <div class="stat"><div class="stat-label">Avg cost</div><div class="stat-val" id="avg-cost" style="font-size:17px">—</div></div>
+  </div>
+
+  <div class="layout">
+
+    <!-- Left: form -->
+    <div class="card">
+      <div class="card-label">Station input</div>
+
+      <div class="field">
+        <div class="field-top">
+          <span class="field-name">Station ID</span>
+          <span class="field-unit">optional</span>
+        </div>
+        <input class="sid-input" type="text" id="sid" placeholder="e.g. ST-042"/>
+      </div>
+
+      <div class="field">
+        <div class="field-top">
+          <span class="field-name">Daily usage</span>
+          <span class="field-unit">sessions / day</span>
+        </div>
+        <div class="slider-row">
+          <input type="range" id="usage" min="80" max="700" step="5" value="280"
+            oninput="document.getElementById('usage-val').textContent=this.value+' sessions';updateGauge()"/>
+          <span class="slider-val" id="usage-val">280 sessions</span>
+        </div>
+        <div class="range-hint"><span>80</span><span>280 avg</span><span>400</span><span>700</span></div>
+        <div class="field-note">How many charging sessions per day. Dataset average: 346. Above 450 accelerates connector wear.</div>
+      </div>
+
+      <div class="field">
+        <div class="field-top">
+          <span class="field-name">Downtime hours</span>
+          <span class="field-unit">hours offline / day</span>
+        </div>
+        <div class="slider-row">
+          <input type="range" id="downtime" min="0" max="8" step="0.5" value="1.5"
+            oninput="document.getElementById('dt-val').textContent=this.value+' hrs';updateGauge()"/>
+          <span class="slider-val" id="dt-val">1.5 hrs</span>
+        </div>
+        <div class="range-hint"><span>0</span><span>1.5 healthy</span><span>3 concern</span><span>8</span></div>
+        <div class="field-note">Strongest predictor. Above 3 hrs almost always triggers a maintenance flag.</div>
+      </div>
+
+      <div class="field">
+        <div class="field-top">
+          <span class="field-name">Maintenance cost</span>
+          <span class="field-unit">₹ this month</span>
+        </div>
+        <div class="slider-row">
+          <input type="range" id="cost" min="500" max="4500" step="50" value="1100"
+            oninput="document.getElementById('cost-val').textContent='₹'+parseInt(this.value).toLocaleString();updateGauge()"/>
+          <span class="slider-val" id="cost-val">₹1,100</span>
+        </div>
+        <div class="range-hint"><span>₹500</span><span>₹1,875 avg</span><span>₹2,500</span><span>₹4,500</span></div>
+        <div class="field-note">Above ₹2,000 often signals recurring issues. Dataset average: ₹1,875.</div>
+      </div>
+
+      <button class="btn" onclick="predict()">Predict</button>
+
+      <div class="result" id="result-box">
+        <div class="result-top">
+          <div class="result-verdict" id="result-verdict"></div>
+          <div class="result-pct" id="result-pct"></div>
+        </div>
+        <div class="result-body">
+          <div class="model-scores">
+            <div class="model-score">
+              <div class="ms-label">Logistic regression</div>
+              <div class="ms-val" id="lr-score">—</div>
+            </div>
+            <div class="model-score">
+              <div class="ms-label">Random forest</div>
+              <div class="ms-val" id="rf-score">—</div>
+            </div>
+          </div>
+          <div class="contrib-title">Feature influence</div>
+          <div id="contrib-usage" class="contrib-row"></div>
+          <div id="contrib-downtime" class="contrib-row"></div>
+          <div id="contrib-cost" class="contrib-row"></div>
+          <div class="formula-note">
+            Confidence = (LR probability + RF vote ratio) ÷ 2 &nbsp;·&nbsp; Threshold: ≥ 50%
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: gauge + glossary -->
+    <div class="right-stack">
+
+      <div class="card">
+        <div class="card-label">Live risk score</div>
+        <div class="gauge-wrap">
+          <canvas id="gaugeChart" style="max-height:140px"></canvas>
+          <div style="margin-top:-28px;text-align:center">
+            <div id="gauge-pct" style="font-size:26px;font-weight:600;color:var(--text)">—</div>
+            <div id="gauge-label" style="font-size:11px;color:var(--muted);margin-top:2px">Move sliders to update</div>
+          </div>
+        </div>
+        <div class="gauge-labels" style="margin-top:12px"><span>Safe</span><span>Threshold 50%</span><span>Critical</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Input guide</div>
+        <div class="gloss-item">
+          <div class="gloss-term">Daily usage</div>
+          <div class="gloss-desc">High session count wears connectors faster. Weight in model: low (coef 0.0015).</div>
+        </div>
+        <div class="gloss-item">
+          <div class="gloss-term">Downtime hours</div>
+          <div class="gloss-desc">Strongest predictor. Even 3 hrs of daily downtime strongly signals a fault. Weight: high (coef 2.02).</div>
+        </div>
+        <div class="gloss-item">
+          <div class="gloss-term">Maintenance cost</div>
+          <div class="gloss-desc">Escalating costs expose recurring issues. Weight: moderate (coef 0.0036).</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card history">
+    <div class="card-label">Prediction history</div>
+    <div class="history-chart"><canvas id="histChart"></canvas></div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Station</th><th>Usage</th><th>Downtime</th><th>Cost</th><th>LR</th><th>RF</th><th>Confidence</th><th>Result</th>
+        </tr>
+      </thead>
+      <tbody id="hist-body">
+        <tr><td colspan="9" class="empty">No predictions yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span>EV Station Maintenance Predictor</span>
+    <span>Logistic Regression + Random Forest · 500 stations</span>
+  </footer>
+
+</div>
+<script>
+
+// ── Real model trained on 500-row dataset ──
+const LR_INTERCEPT = -12.181263;
+const LR_COEFS = [0.001478, 2.02372, 0.003582];
+
+// 50 RF trees: each tree = [features, thresholds, left_children, right_children, leaf_values]
+// feature indices: 0=Daily_Usage, 1=Downtime_Hours, 2=Maintenance_Cost
+const RF_TREES = [[[0, 1, -2, -2, 2, -2, -2], [357.0, 2.5, -2.0, -2.0, 1908.0, -2.0, -2.0], [1, 2, -1, -1, 5, -1, -1], [4, 3, -1, -1, 6, -1, -1], [0, 0, 0, 1, 1, 0, 1]], [[2, 2, -2, 2, -2, -2, 2, 1, -2, -2, -2], [1713.0, 1591.5, -2.0, 1604.0, -2.0, -2.0, 1932.5, 2.5, -2.0, -2.0, -2.0], [1, 2, -1, 4, -1, -1, 7, 8, -1, -1, -1], [6, 3, -1, 5, -1, -1, 10, 9, -1, -1, -1], [0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[2, -2, 1, -2, -2], [1713.0, -2.0, 2.5, -2.0, -2.0], [1, -1, 3, -1, -1], [2, -1, 4, -1, -1], [0, 0, 1, 0, 1]], [[2, -2, 1, -2, -2], [1577.0, -2.0, 2.5, -2.0, -2.0], [1, -1, 3, -1, -1], [2, -1, 4, -1, -1], [1, 0, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[0, 1, -2, -2, 2, -2, -2], [356.5, 2.5, -2.0, -2.0, 1855.0, -2.0, -2.0], [1, 2, -1, -1, 5, -1, -1], [4, 3, -1, -1, 6, -1, -1], [0, 0, 0, 1, 1, 0, 1]], [[2, 1, -2, -2, 0, -2, 0, -2, -2], [1814.5, 2.5, -2.0, -2.0, 469.0, -2.0, 471.5, -2.0, -2.0], [1, 2, -1, -1, 5, -1, 7, -1, -1], [4, 3, -1, -1, 6, -1, 8, -1, -1], [0, 0, 0, 1, 1, 1, 1, 0, 1]], [[0, 1, -2, -2, 0, 0, 2, -2, -2, -2, 0, 0, -2, 0, -2, 0, -2, -2, -2], [357.0, 2.5, -2.0, -2.0, 455.0, 451.0, 1855.0, -2.0, -2.0, -2.0, 484.0, 469.0, -2.0, 471.5, -2.0, 479.5, -2.0, -2.0, -2.0], [1, 2, -1, -1, 5, 6, 7, -1, -1, -1, 11, 12, -1, 14, -1, 16, -1, -1, -1], [4, 3, -1, -1, 10, 9, 8, -1, -1, -1, 18, 13, -1, 15, -1, 17, -1, -1, -1], [0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1]], [[0, 2, -2, 0, -2, 2, -2, -2, 2, -2, -2], [359.5, 1591.5, -2.0, 328.5, -2.0, 1812.0, -2.0, -2.0, 1902.5, -2.0, -2.0], [1, 2, -1, 4, -1, 6, -1, -1, 9, -1, -1], [8, 3, -1, 5, -1, 7, -1, -1, 10, -1, -1], [0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1]], [[2, 1, -2, -2, -2], [1902.5, 2.5, -2.0, -2.0, -2.0], [1, 2, -1, -1, -1], [4, 3, -1, -1, -1], [0, 0, 0, 1, 1]], [[2, 0, 0, -2, -2, -2, 1, -2, -2], [1715.5, 269.0, 266.5, -2.0, -2.0, -2.0, 2.5, -2.0, -2.0], [1, 2, 3, -1, -1, -1, 7, -1, -1], [6, 5, 4, -1, -1, -1, 8, -1, -1], [0, 0, 0, 0, 1, 0, 1, 0, 1]], [[2, 0, 1, -2, -2, -2, -2], [1814.5, 318.5, 2.5, -2.0, -2.0, -2.0, -2.0], [1, 2, 3, -1, -1, -1, -1], [6, 5, 4, -1, -1, -1, -1], [0, 0, 0, 0, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[0, 2, -2, 2, 2, 1, -2, -2, -2, -2, 2, -2, -2], [359.5, 1591.5, -2.0, 1808.0, 1762.5, 2.0, -2.0, -2.0, -2.0, -2.0, 1902.5, -2.0, -2.0], [1, 2, -1, 4, 5, 6, -1, -1, -1, -1, 11, -1, -1], [10, 3, -1, 9, 8, 7, -1, -1, -1, -1, 12, -1, -1], [0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1]], [[0, 1, -2, -2, 1, -2, -2], [347.5, 2.5, -2.0, -2.0, 2.5, -2.0, -2.0], [1, 2, -1, -1, 5, -1, -1], [4, 3, -1, -1, 6, -1, -1], [0, 0, 0, 1, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [1, 0, 1]], [[2, 2, 1, -2, -2, 0, -2, -2, -2], [1784.5, 1713.0, 3.0, -2.0, -2.0, 285.5, -2.0, -2.0, -2.0], [1, 2, 3, -1, -1, 6, -1, -1, -1], [8, 5, 4, -1, -1, 7, -1, -1, -1], [0, 0, 0, 0, 1, 0, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[0, 0, 0, 1, -2, -2, 2, -2, -2, 0, 2, -2, -2, 2, -2, -2, 2, -2, -2], [391.0, 308.5, 251.5, 2.5, -2.0, -2.0, 1534.5, -2.0, -2.0, 357.0, 1847.0, -2.0, -2.0, 1822.5, -2.0, -2.0, 1960.5, -2.0, -2.0], [1, 2, 3, 4, -1, -1, 7, -1, -1, 10, 11, -1, -1, 14, -1, -1, 17, -1, -1], [16, 9, 6, 5, -1, -1, 8, -1, -1, 13, 12, -1, -1, 15, -1, -1, 18, -1, -1], [0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[0, 1, -2, -2, 2, -2, -2], [355.5, 2.5, -2.0, -2.0, 2000.0, -2.0, -2.0], [1, 2, -1, -1, 5, -1, -1], [4, 3, -1, -1, 6, -1, -1], [0, 0, 0, 1, 1, 0, 1]], [[2, 1, -2, -2, 2, 0, -2, -2, -2], [1814.5, 2.5, -2.0, -2.0, 1902.5, 388.0, -2.0, -2.0, -2.0], [1, 2, -1, -1, 5, 6, -1, -1, -1], [4, 3, -1, -1, 8, 7, -1, -1, -1], [0, 0, 0, 1, 1, 1, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[0, 2, -2, 2, 0, -2, -2, -2, 2, -2, -2], [359.5, 1566.0, -2.0, 1792.0, 332.5, -2.0, -2.0, -2.0, 1784.5, -2.0, -2.0], [1, 2, -1, 4, 5, -1, -1, -1, 9, -1, -1], [8, 3, -1, 7, 6, -1, -1, -1, 10, -1, -1], [0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[2, 1, -2, -2, -2], [1830.5, 2.5, -2.0, -2.0, -2.0], [1, 2, -1, -1, -1], [4, 3, -1, -1, -1], [0, 0, 0, 1, 1]], [[0, 2, 2, -2, 0, -2, -2, 2, 2, -2, 0, -2, -2, -2, 0, 0, 2, -2, -2, 1, -2, -2, 2, -2, -2], [362.5, 1651.0, 1591.5, -2.0, 301.0, -2.0, -2.0, 1821.5, 1728.5, -2.0, 310.0, -2.0, -2.0, -2.0, 443.0, 441.5, 1855.0, -2.0, -2.0, 1.75, -2.0, -2.0, 2152.5, -2.0, -2.0], [1, 2, 3, -1, 5, -1, -1, 8, 9, -1, 11, -1, -1, -1, 15, 16, 17, -1, -1, 20, -1, -1, 23, -1, -1], [14, 7, 4, -1, 6, -1, -1, 13, 10, -1, 12, -1, -1, -1, 22, 19, 18, -1, -1, 21, -1, -1, 24, -1, -1], [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1]], [[0, 1, -2, -2, 0, 2, -2, -2, -2], [356.5, 2.5, -2.0, -2.0, 471.5, 1908.0, -2.0, -2.0, -2.0], [1, 2, -1, -1, 5, 6, -1, -1, -1], [4, 3, -1, -1, 8, 7, -1, -1, -1], [1, 0, 0, 1, 1, 1, 0, 1, 1]], [[2, 1, -2, -2, -2], [1903.0, 2.5, -2.0, -2.0, -2.0], [1, 2, -1, -1, -1], [4, 3, -1, -1, -1], [0, 0, 0, 1, 1]], [[0, 0, 1, -2, -2, 1, -2, -2, 2, -2, -2], [357.0, 265.5, 3.0, -2.0, -2.0, 2.5, -2.0, -2.0, 1857.5, -2.0, -2.0], [1, 2, 3, -1, -1, 6, -1, -1, 9, -1, -1], [8, 5, 4, -1, -1, 7, -1, -1, 10, -1, -1], [0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1]], [[0, 0, 2, -2, -2, 1, -2, -2, 1, -2, -2], [347.5, 266.5, 1539.0, -2.0, -2.0, 2.5, -2.0, -2.0, 2.5, -2.0, -2.0], [1, 2, 3, -1, -1, 6, -1, -1, 9, -1, -1], [8, 5, 4, -1, -1, 7, -1, -1, 10, -1, -1], [0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [1, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[0, 0, -2, 1, -2, -2, 1, -2, -2], [346.5, 198.0, -2.0, 2.5, -2.0, -2.0, 2.5, -2.0, -2.0], [1, 2, -1, 4, -1, -1, 7, -1, -1], [6, 3, -1, 5, -1, -1, 8, -1, -1], [1, 0, 0, 0, 0, 1, 1, 0, 1]], [[2, 2, -2, 2, -2, 2, -2, 2, -2, -2, 2, 0, 2, 1, -2, -2, -2, -2, -2], [1713.0, 1591.5, -2.0, 1601.0, -2.0, 1671.5, -2.0, 1684.0, -2.0, -2.0, 1908.0, 356.0, 1732.0, 3.0, -2.0, -2.0, -2.0, -2.0, -2.0], [1, 2, -1, 4, -1, 6, -1, 8, -1, -1, 11, 12, 13, 14, -1, -1, -1, -1, -1], [10, 3, -1, 5, -1, 7, -1, 9, -1, -1, 18, 17, 16, 15, -1, -1, -1, -1, -1], [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1]], [[0, 2, 1, -2, -2, -2, 2, -2, -2], [355.5, 1732.0, 3.0, -2.0, -2.0, -2.0, 1952.5, -2.0, -2.0], [1, 2, 3, -1, -1, -1, 7, -1, -1], [6, 5, 4, -1, -1, -1, 8, -1, -1], [0, 0, 0, 0, 1, 1, 1, 0, 1]], [[2, 1, -2, -2, -2], [1814.5, 2.5, -2.0, -2.0, -2.0], [1, 2, -1, -1, -1], [4, 3, -1, -1, -1], [0, 0, 0, 1, 1]], [[2, 0, 1, -2, -2, 0, -2, 1, -2, -2, -2], [1841.5, 217.5, 2.5, -2.0, -2.0, 298.5, -2.0, 2.5, -2.0, -2.0, -2.0], [1, 2, 3, -1, -1, 6, -1, 8, -1, -1, -1], [10, 5, 4, -1, -1, 7, -1, 9, -1, -1, -1], [0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[1, -2, -2], [2.5, -2.0, -2.0], [1, -1, -1], [2, -1, -1], [0, 0, 1]], [[0, 0, 0, 2, -2, -2, 2, -2, -2, 0, -2, 1, -2, -2, 2, -2, -2], [357.0, 260.0, 217.5, 1411.0, -2.0, -2.0, 1612.5, -2.0, -2.0, 262.5, -2.0, 2.5, -2.0, -2.0, 1902.5, -2.0, -2.0], [1, 2, 3, 4, -1, -1, 7, -1, -1, 10, -1, 12, -1, -1, 15, -1, -1], [14, 9, 6, 5, -1, -1, 8, -1, -1, 11, -1, 13, -1, -1, 16, -1, -1], [0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1]], [[2, 0, 0, -2, 2, -2, -2, 0, -2, 0, 2, -2, -2, -2, 1, -2, -2], [1713.0, 217.5, 215.5, -2.0, 1204.5, -2.0, -2.0, 298.5, -2.0, 299.5, 1517.0, -2.0, -2.0, -2.0, 2.5, -2.0, -2.0], [1, 2, 3, -1, 5, -1, -1, 8, -1, 10, 11, -1, -1, -1, 15, -1, -1], [14, 7, 4, -1, 6, -1, -1, 9, -1, 13, 12, -1, -1, -1, 16, -1, -1], [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1]], [[2, 0, 2, -2, -2, 0, 1, -2, -2, -2, 2, 1, -2, -2, -2], [1830.5, 267.5, 1503.0, -2.0, -2.0, 318.5, 2.5, -2.0, -2.0, -2.0, 1902.5, 2.5, -2.0, -2.0, -2.0], [1, 2, 3, -1, -1, 6, 7, -1, -1, -1, 11, 12, -1, -1, -1], [10, 5, 4, -1, -1, 9, 8, -1, -1, -1, 14, 13, -1, -1, -1], [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1]]];
+
+const DATASET = {
+  n: 500, nMaint: 240,
+  usageMean: 346.2, downtimeMean: 2.8,
+  costMean: 1874.8,
+  lrAcc: 100.0, rfAcc: 100.0
+};
+
+function logisticPredict(u, d, c) {
+  const score = LR_INTERCEPT + LR_COEFS[0]*u + LR_COEFS[1]*d + LR_COEFS[2]*c;
+  return 1 / (1 + Math.exp(-score));
+}
+
+function rfPredictProba(u, d, c) {
+  const vals = [u, d, c];
+  let votes = 0;
+  for (const [feat, thresh, left, right, leafVals] of RF_TREES) {
+    let node = 0;
+    while (feat[node] !== -2) {
+      node = vals[feat[node]] <= thresh[node] ? left[node] : right[node];
+    }
+    votes += leafVals[node];
+  }
+  return votes / RF_TREES.length;
+}
+
+const predHistory = [];
+let histChartInst = null;
+
+function predict() {
+  const sid = document.getElementById('sid').value.trim() || 'Station';
+  const u = parseFloat(document.getElementById('usage').value);
+  const d = parseFloat(document.getElementById('downtime').value);
+  const c = parseFloat(document.getElementById('cost').value);
+  const lrP = logisticPredict(u, d, c);
+  const rfP = rfPredictProba(u, d, c);
+  const p = (lrP + rfP) / 2;
+  const need = p >= 0.5;
+
+  const box = document.getElementById('result-box');
+  box.style.display = 'block';
+  box.className = 'result-box ' + (need ? 'maint' : 'clear');
+  document.getElementById('result-pct').textContent = Math.round(p * 100) + '%';
+  document.getElementById('result-verdict').textContent = need ? 'Maintenance Required' : 'No Maintenance Needed';
+
+  // ── Confidence breakdown ──
+  document.getElementById('lr-score').textContent = Math.round(lrP * 100) + '%';
+  document.getElementById('lr-score').style.color = lrP >= 0.5 ? '#ff5c5c' : '#3ddc84';
+  document.getElementById('rf-score').textContent = Math.round(rfP * 100) + '%';
+  document.getElementById('rf-score').style.color = rfP >= 0.5 ? '#ff5c5c' : '#3ddc84';
+
+  // Feature contributions: each feature's weighted contribution to LR score
+  // Raw contribution = coef * value (uncentered, shows relative pull)
+  const contribs = [
+    { id: 'contrib-usage',    label: 'Daily usage',    raw: LR_COEFS[0] * u, val: u + ' sessions' },
+    { id: 'contrib-downtime', label: 'Downtime hrs',   raw: LR_COEFS[1] * d, val: d + ' hrs' },
+    { id: 'contrib-cost',     label: 'Maint. cost',    raw: LR_COEFS[2] * c, val: '₹' + c.toLocaleString() },
+  ];
+  const maxRaw = Math.max(...contribs.map(x => Math.abs(x.raw)), 0.01);
+  contribs.forEach(ct => {
+    const pct = Math.round((Math.abs(ct.raw) / maxRaw) * 100);
+    const color = ct.raw > 0 ? '#c0392b' : '#1a7a45';
+    document.getElementById(ct.id).innerHTML = `
+      <span class="contrib-label">${ct.label}</span>
+      <div class="contrib-bar-wrap"><div class="contrib-bar" style="width:${pct}%;background:${color}"></div></div>
+      <span class="contrib-val">${ct.val}</span>
+    `;
+  });
+
+  predHistory.unshift({ sid, u, d, c, p, lrP, rfP, need });
+  updateMetrics();
+  updateTable();
+  updateHistChart();
+}
+
+function updateMetrics() {
+  const n = predHistory.length;
+  const y = predHistory.filter(h => h.need).length;
+  const avg = n ? Math.round(predHistory.reduce((s, h) => s + h.c, 0) / n) : null;
+  document.getElementById('cnt').textContent = n;
+  document.getElementById('yes-cnt').textContent = y;
+  document.getElementById('no-cnt').textContent = n - y;
+  document.getElementById('avg-cost').textContent = avg !== null ? '\u20B9' + avg.toLocaleString() : '\u2014';
+}
+
+function updateTable() {
+  document.getElementById('hist-body').innerHTML = predHistory.map((h, i) => `
+    <tr>
+      <td style="color:var(--faint)">${predHistory.length - i}</td>
+      <td style="color:var(--text)">${h.sid}</td>
+      <td>${h.u}</td>
+      <td>${h.d} hrs</td>
+      <td>₹${h.c.toLocaleString()}</td>
+      <td>${Math.round(h.lrP * 100)}%</td>
+      <td>${Math.round(h.rfP * 100)}%</td>
+      <td>${Math.round(h.p * 100)}%</td>
+      <td><span class="badge ${h.need ? 'badge-maint' : 'badge-clear'}">${h.need ? 'Maintenance' : 'All clear'}</span></td>
+    </tr>
+  `).join('');
+}
+
+function updateHistChart() {
+  if (histChartInst) histChartInst.destroy();
+  const labels = predHistory.map((_, i) => '#' + (predHistory.length - i)).reverse();
+  const data = predHistory.map(h => h.need ? 1 : 0).reverse();
+  histChartInst = new Chart(document.getElementById('histChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: data.map(v => v ? '#c0392b' : '#1a7a45'), borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw === 1 ? 'Needs maintenance' : 'All clear' } } },
+      scales: {
+        y: { min: 0, max: 1, ticks: { callback: v => v === 1 ? 'Yes' : v === 0 ? 'No' : '', color: '#a8a8a6' }, grid: { color: '#f0f0ee' } },
+        x: { ticks: { color: '#a8a8a6' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+const gaugeChart = new Chart(document.getElementById('gaugeChart'), {
+  type: 'doughnut',
+  data: { datasets: [{ data: [0, 100], backgroundColor: ['#e4e4e2', '#f0f0ee'], borderWidth: 0, circumference: 180, rotation: 270 }] },
+  options: { responsive: true, maintainAspectRatio: true, cutout: '72%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { duration: 300 } }
+});
+
+function updateGauge() {
+  const u = parseFloat(document.getElementById('usage').value);
+  const d = parseFloat(document.getElementById('downtime').value);
+  const c = parseFloat(document.getElementById('cost').value);
+  const p = (logisticPredict(u, d, c) + rfPredictProba(u, d, c)) / 2;
+  const pct = Math.round(p * 100);
+  const color = p < 0.35 ? '#1a7a45' : p < 0.65 ? '#92600a' : '#c0392b';
+  gaugeChart.data.datasets[0].data = [pct, 100 - pct];
+  gaugeChart.data.datasets[0].backgroundColor[0] = color;
+  gaugeChart.update();
+  document.getElementById('gauge-pct').textContent = pct + '%';
+  document.getElementById('gauge-pct').style.color = color;
+  document.getElementById('gauge-label').textContent = p < 0.35 ? 'Low risk' : p < 0.65 ? 'Moderate risk' : 'High risk — maintenance likely';
+}
+
+['usage','downtime','cost'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateGauge);
+});
+updateGauge();
+
+
+</script>
+</body>
+</html>
