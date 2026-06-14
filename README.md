@@ -40,10 +40,10 @@ ev-maintenance-predictor/
 
 Both models are trained on an 80/20 train-test split (`random_state=42`).
 
-| Model | Accuracy | Notes |
-|---|---|---|
-| Logistic Regression | 100% | StandardScaler applied; unscaled coefs embedded in web app |
-| Random Forest | 100% | 50 trees, max_depth=6; all trees exported to JS |
+| Model | Description |
+|---|---|
+| Logistic Regression | Trained with feature scaling using StandardScaler for maintenance prediction |
+| Random Forest | Ensemble of 50 decision trees for robust classification |
 
 **Ensemble**: Final confidence = (LR probability + RF vote ratio) ÷ 2  
 **Threshold**: ≥ 50% → Maintenance Required
